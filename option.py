@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Callable, Generic, TypeAlias, TypeVar, overload
+from typing import Any, Callable, Generic, TypeAlias, TypeVar, overload
 
 T = TypeVar("T")
 T1 = TypeVar("T1")
@@ -21,6 +21,10 @@ class Optional(ABC, Generic[T]):
         ...
 
     @abstractmethod
+    def __eq__(self, other: Any) -> bool:
+        ...
+
+    @abstractmethod
     def unwrap(self) -> T:
         ...
 
@@ -30,6 +34,10 @@ class Optional(ABC, Generic[T]):
 
     @abstractmethod
     def transform(self, f: Callable[[T], T1]) -> Option[T1]:
+        ...
+
+    @abstractmethod
+    def and_then(self, f: Callable[[T], Option[T1]]) -> Option[T1]:
         ...
 
     @overload
@@ -62,6 +70,13 @@ class Some(Optional[T]):
     def __bool__(self) -> bool:
         return True
     
+    def __eq__(self, other: Any) -> bool:
+        match other:
+            case Some():
+                return self.value == other.value
+            case _:
+                return False
+    
     def unwrap(self) -> T:
         return self.value
     
@@ -70,6 +85,9 @@ class Some(Optional[T]):
 
     def transform(self, f: Callable[[T], T1]) -> Option[T1]:
         return Some(f(self.value))
+    
+    def and_then(self, f: Callable[[T], Option[T1]]) -> Option[T1]:
+        return f(self.value)
 
 
 class Empty(Optional[T]):
@@ -83,6 +101,9 @@ class Empty(Optional[T]):
     def __bool__(self) -> bool:
         return False
 
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, Empty)
+
     def unwrap(self) -> T:
         raise ValueError("Empty object has no value to unwrap")
     
@@ -91,11 +112,14 @@ class Empty(Optional[T]):
 
     def transform(self, f: Callable[[T], T1]) -> Option[T1]:
         return Empty[T1]()
+    
+    def and_then(self, f: Callable[[T], Option[T1]]) -> Option[T1]:
+        return Empty[T1]()
 
 
 def make_option(*value: T) -> Option[T]:
     if not value:
-        return Empty()
+        return Empty[T]()
     return Some(value[0])
 
 
@@ -126,6 +150,19 @@ def main() -> None:
         print(f"piped: {result}")
         or_else_result = opt | 1000
         print(f"or_else: {or_else_result}")
+
+    def parse_int(x: str) -> Option[int]:
+        try:
+            return Some(int(x))
+        except ValueError:
+            return Empty()
+
+    opt4 = make_option("1")
+    opt5 = make_option("hello")
+    opt6: Option[str] = make_option()
+    assert opt4.and_then(parse_int) == make_option(1)
+    assert opt5.and_then(parse_int) == Empty[int]()
+    assert opt6.and_then(parse_int) == Empty[int]()
 
 
 if __name__ == "__main__":
