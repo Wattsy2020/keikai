@@ -53,6 +53,10 @@ class Optional(ABC, Generic[T]):
             return self.transform(other)
         return self.or_else(other)
 
+    @abstractmethod
+    def to_optional(self) -> T | None:
+        ...
+
 
 class Some(Optional[T]):
     def __init__(self, *value: T) -> None:
@@ -88,6 +92,9 @@ class Some(Optional[T]):
     
     def and_then(self, f: Callable[[T], Option[T1]]) -> Option[T1]:
         return f(self.value)
+    
+    def to_optional(self) -> T | None:
+        return self.value
 
 
 class Empty(Optional[T]):
@@ -115,12 +122,21 @@ class Empty(Optional[T]):
     
     def and_then(self, f: Callable[[T], Option[T1]]) -> Option[T1]:
         return Empty[T1]()
+    
+    def to_optional(self) -> T | None:
+        return None
+
+
+def from_optional(value: T | None) -> Option[T]:
+    if not value:
+        return Empty[T]()
+    return Some(value)
 
 
 def make_option(*value: T) -> Option[T]:
     if not value:
         return Empty[T]()
-    return Some(value[0])
+    return Some(*value)
 
 
 def main() -> None:
@@ -163,6 +179,11 @@ def main() -> None:
     assert opt4.and_then(parse_int) == make_option(1)
     assert opt5.and_then(parse_int) == Empty[int]()
     assert opt6.and_then(parse_int) == Empty[int]()
+
+    opt7 = from_optional(1)
+    opt8: Option[int] = from_optional(None)
+    print(opt7, opt7.to_optional())
+    print(opt8, opt8.to_optional())
 
 
 if __name__ == "__main__":
