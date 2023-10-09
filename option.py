@@ -5,10 +5,10 @@ from typing import Any, Callable, Generic, TypeAlias, TypeVar, overload
 
 T = TypeVar("T")
 T1 = TypeVar("T1")
-Option: TypeAlias = "Some[T] | Empty[T]"
+Optional: TypeAlias = "Some[T] | Empty[T]"
 
 
-class Optional(ABC, Generic[T]):
+class Option(ABC, Generic[T]):
     def __init__(self, *value: T) -> None:
         pass
 
@@ -33,22 +33,22 @@ class Optional(ABC, Generic[T]):
         ...
 
     @abstractmethod
-    def transform(self, f: Callable[[T], T1]) -> Option[T1]:
+    def transform(self, f: Callable[[T], T1]) -> Optional[T1]:
         ...
 
     @abstractmethod
-    def and_then(self, f: Callable[[T], Option[T1]]) -> Option[T1]:
+    def and_then(self, f: Callable[[T], Optional[T1]]) -> Optional[T1]:
         ...
 
     @overload
-    def __or__(self, other: Callable[[T], T1]) -> Option[T1]:  # type: ignore[misc]
+    def __or__(self, other: Callable[[T], T1]) -> Optional[T1]:  # type: ignore[misc]
         ...
 
     @overload
     def __or__(self, other: T) -> T:
         ...
 
-    def __or__(self, other: T | Callable[[T], T1]) -> T | Option[T1]:  # type: ignore[misc]
+    def __or__(self, other: T | Callable[[T], T1]) -> T | Optional[T1]:  # type: ignore[misc]
         if callable(other):
             return self.transform(other)
         return self.or_else(other)
@@ -58,7 +58,7 @@ class Optional(ABC, Generic[T]):
         ...
 
 
-class Some(Optional[T]):
+class Some(Option[T]):
     def __init__(self, *value: T) -> None:
         try:
             first, *remaining = value
@@ -87,17 +87,17 @@ class Some(Optional[T]):
     def or_else(self, other: T) -> T:
         return self.value
 
-    def transform(self, f: Callable[[T], T1]) -> Option[T1]:
+    def transform(self, f: Callable[[T], T1]) -> Optional[T1]:
         return Some(f(self.value))
 
-    def and_then(self, f: Callable[[T], Option[T1]]) -> Option[T1]:
+    def and_then(self, f: Callable[[T], Optional[T1]]) -> Optional[T1]:
         return f(self.value)
 
     def to_optional(self) -> T | None:
         return self.value
 
 
-class Empty(Optional[T]):
+class Empty(Option[T]):
     def __init__(self, *value: T) -> None:
         if value:
             raise ValueError(f"Cannot assign the value {value} to an Empty object")
@@ -117,23 +117,23 @@ class Empty(Optional[T]):
     def or_else(self, other: T) -> T:
         return other
 
-    def transform(self, f: Callable[[T], T1]) -> Option[T1]:
+    def transform(self, f: Callable[[T], T1]) -> Optional[T1]:
         return Empty[T1]()
 
-    def and_then(self, f: Callable[[T], Option[T1]]) -> Option[T1]:
+    def and_then(self, f: Callable[[T], Optional[T1]]) -> Optional[T1]:
         return Empty[T1]()
 
     def to_optional(self) -> T | None:
         return None
 
 
-def from_optional(value: T | None) -> Option[T]:
+def from_optional(value: T | None) -> Optional[T]:
     if value is None:
         return Empty[T]()
     return Some(value)
 
 
-def make_option(*value: T) -> Option[T]:
+def make_option(*value: T) -> Optional[T]:
     if not value:
         return Empty[T]()
     return Some(*value)
